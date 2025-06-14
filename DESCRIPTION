@@ -1,0 +1,27 @@
+Package: margot.core
+Title: Core S3 Classes and Infrastructure for the Margotsphere Ecosystem
+Version: 0.0.1
+Authors@R: 
+    person("Joseph", "Bulbulia", , "joseph.bulbulia@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-5861-2056"))
+Description: Provides core S3 classes and infrastructure for the margotsphere 
+    ecosystem. This package defines the fundamental data structures and 
+    validation functions used across all margot packages, including the 
+    margot_panel class for panel data, shadow classes for observational 
+    distortions, and scenario classes for bundling shadows. Designed to be 
+    lightweight with minimal dependencies.
+License: MIT + file LICENSE
+URL: https://github.com/go-bayes/margot.core
+BugReports: https://github.com/go-bayes/margot.core/issues
+Depends: 
+    R (>= 4.0.0)
+Imports:
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Config/testthat/edition: 3

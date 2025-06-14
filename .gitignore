@@ -1,0 +1,40 @@
+# r specific files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# macos files
+*.DS_Store
+
+# generated documentation
+/doc/
+/Meta/
+inst/doc
+vignettes/*.html
+vignettes/*.pdf
+
+# development notes
+.dev-notes/
+
+# pkgdown site
+docs/
+
+# built packages
+*.tar.gz
+
+# r cmd check output
+*.Rcheck/
+
+# temporary files
+*~
+.Rprofile
+
+# compiled code
+src/*.o
+src/*.so
+src/*.dll
+.Rdata
+.httr-oauth
+.DS_Store
+.quarto
