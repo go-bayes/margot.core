@@ -47,7 +47,7 @@ new_shadow <- function(type, params, ...) {
   valid_types <- c(
     "measurement_error", "missing_data", "censoring", "truncation",
     "selection", "misclassification", "confounding", "positivity",
-    "mode_effects", "coarsening", "item_missingness"
+    "mode_effects", "coarsening", "item_missingness", "temporal_measurement_error"
   )
   
   if (!type %in% valid_types) {
@@ -292,6 +292,71 @@ validate_shadow.item_missingness_shadow <- function(x, ...) {
   if (is.null(rate_param) || !is.numeric(rate_param) ||
       rate_param < 0 || rate_param > 1) {
     stop("Item missingness shadow requires 'missing_rate' or 'rate' between 0 and 1", call. = FALSE)
+  }
+  
+  invisible(x)
+}
+
+#' @export
+validate_shadow.temporal_measurement_error_shadow <- function(x, ...) {
+  # check required params based on error type
+  if (!("error_type" %in% names(x$params))) {
+    stop("error_type parameter required for temporal_measurement_error_shadow", 
+         call. = FALSE)
+  }
+  
+  if (!("variables" %in% names(x$params))) {
+    stop("variables parameter required for temporal_measurement_error_shadow", 
+         call. = FALSE)
+  }
+  
+  # type-specific validation
+  if (x$params$error_type == "retrospective") {
+    req_params <- c("window_size", "aggregation")
+    missing <- setdiff(req_params, names(x$params))
+    if (length(missing) > 0) {
+      stop("Missing required parameters for retrospective error: ",
+           paste(missing, collapse = ", "), call. = FALSE)
+    }
+  } else if (x$params$error_type == "delayed") {
+    if (!("delay" %in% names(x$params))) {
+      stop("delay parameter required for delayed measurement", call. = FALSE)
+    }
+  } else if (x$params$error_type == "anticipatory") {
+    req_params <- c("lead_time", "probability")
+    missing <- setdiff(req_params, names(x$params))
+    if (length(missing) > 0) {
+      stop("Missing required parameters for anticipatory measurement: ",
+           paste(missing, collapse = ", "), call. = FALSE)
+    }
+  }
+  
+  invisible(x)
+}
+
+# Note: apply_shadow.temporal_measurement_error_shadow is implemented in margot.sim
+# since it requires access to the full simulation framework
+
+#' Print temporal measurement error shadow
+#' 
+#' @param x A temporal_measurement_error_shadow object
+#' @param ... Additional arguments
+#' @return The object invisibly
+#' @export
+print.temporal_measurement_error_shadow <- function(x, ...) {
+  cat("Temporal Measurement Error Shadow\n")
+  cat("  Type:", x$params$error_type, "\n")
+  cat("  Variables:", paste(x$params$variables, collapse = ", "), "\n")
+  
+  if (x$params$error_type == "retrospective") {
+    cat("  Window:", x$params$window_size, x$params$window_type, "\n")
+    cat("  Aggregation:", x$params$aggregation, "\n")
+  } else if (x$params$error_type == "delayed") {
+    cat("  Delay:", x$params$delay, "periods\n")
+    cat("  Carry forward:", x$params$carry_forward, "\n")
+  } else if (x$params$error_type == "anticipatory") {
+    cat("  Lead time:", x$params$lead_time, "\n")
+    cat("  Follow-through:", x$params$probability, "\n")
   }
   
   invisible(x)

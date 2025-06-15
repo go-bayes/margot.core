@@ -1,3 +1,9 @@
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/go-bayes/boilerplate/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/go-bayes/margot.core/actions/workflows/R-CMD-check.yaml)
+[![R-hub](https://github.com/go-bayes/margot.core/actions/workflows/rhub.yaml/badge.svg)](https://github.com/go-bayes/margot.core/actions/workflows/rhub.yaml)
+[![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+
 # margot.core
 
 Core S3 classes and infrastructure for the margotsphere ecosystem.
