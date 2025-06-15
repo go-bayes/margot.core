@@ -160,7 +160,7 @@ print.margot_timeline <- function(x, ...) {
     cat("  Observations: aligned with time points\n")
   } else {
     cat("  Observations:", length(x$observation_schedule), "at times",
-        paste(head(x$observation_schedule, 3), collapse = ", "))
+        paste(utils::head(x$observation_schedule, 3), collapse = ", "))
     if (length(x$observation_schedule) > 3) cat("...")
     cat("\n")
   }
