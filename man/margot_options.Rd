@@ -2,7 +2,7 @@
 % Please edit documentation in R/margot-core-utils.R
 \name{margot_options}
 \alias{margot_options}
-\title{Standard margotverse options}
+\title{Standard margotsphere options}
 \usage{
 margot_options(..., .list = NULL)
 }
@@ -15,7 +15,7 @@ margot_options(..., .list = NULL)
 If no arguments, returns list of current margot options
 }
 \description{
-Get or set standard options used across margotverse packages
+Get or set standard options used across margotsphere packages
 }
 \examples{
 # get all margot options

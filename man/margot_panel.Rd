@@ -26,12 +26,12 @@ handling of longitudinal data.
 # create example panel data
 df <- data.frame(
   id = rep(1:3, each = 3),
-  wave = rep(1:3, 3),
+  time = rep(1:3, 3),
   outcome = rnorm(9),
   treatment = rbinom(9, 1, 0.5)
 )
 
 # create panel object
-panel <- margot_panel(df, id = "id", time = "wave")
+panel <- margot_panel(df, id = "id", time = "time")
 print(panel)
 }

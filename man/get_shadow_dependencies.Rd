@@ -21,6 +21,10 @@ and which aspects it depends on.
 \details{
 The system uses a directed acyclic graph (DAG) to represent dependencies
 and automatically reorders shadows for correct application sequence.
+
+TODO: Enhanced dependency resolution for time-varying confounding scenarios
+is under development. Current implementation handles basic dependencies
+with explicit ordering.
 Get shadow dependency definitions
 }
 \keyword{internal}

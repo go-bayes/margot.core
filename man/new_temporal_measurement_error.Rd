@@ -51,7 +51,7 @@ tme_retro <- new_temporal_measurement_error(
 tme_delay <- new_temporal_measurement_error(
   error_type = "delayed",
   affected_variables = c("t1_a", "t2_a"),
-  delay = 1,  # measured 1 wave later
+  delay = 1,  # measured 1 time point later
   carry_forward = TRUE  # exposure value persists
 )
 

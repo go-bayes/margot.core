@@ -28,7 +28,7 @@
 #' tme_delay <- new_temporal_measurement_error(
 #'   error_type = "delayed",
 #'   affected_variables = c("t1_a", "t2_a"),
-#'   delay = 1,  # measured 1 wave later
+#'   delay = 1,  # measured 1 time point later
 #'   carry_forward = TRUE  # exposure value persists
 #' )
 #'
@@ -212,7 +212,7 @@ apply_retrospective_error <- function(data, tme, true_data = NULL) {
     # for retrospective, we would aggregate over previous time points
     # this is simplified - full implementation would use timeline object
     if (time_idx > 0 && tme$aggregation == "any") {
-      # check if any exposure in previous wave
+      # check if any exposure in previous time period
       prev_var <- sprintf("t%d_%s", time_idx - 1, var_stem)
       if (prev_var %in% names(data)) {
         # simple "any exposure" aggregation

@@ -1,0 +1,178 @@
+---
+title: "Structural Causal Models in LMTP Style"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Structural Causal Models in LMTP Style}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+The `margot.core` package provides flexible helpers for creating and printing Structural Causal Models (SCMs) in the LMTP style (Díaz et al.). This functionality is designed to work seamlessly across the margotsphere ecosystem.
+
+```{r setup}
+library(margot.core)
+```
+
+## Creating SCMs from Data
+
+The most common use case is creating an SCM from a wide data frame that follows the LMTP naming convention (`t0_*`, `t1_*`, ...).
+
+```{r from-df}
+# create example data
+set.seed(2025)
+df <- data.frame(
+  # baseline
+  t0_b1 = rnorm(100),
+  t0_b2 = rbinom(100, 1, 0.3),
+  t0_l = rnorm(100),
+  
+  # time 1
+  t1_l = rnorm(100),
+  t1_a = rbinom(100, 1, 0.5),
+  t1_y = rnorm(100),
+  
+  # time 2
+  t2_l = rnorm(100),
+  t2_a = rbinom(100, 1, 0.5),
+  t2_y = rnorm(100)
+)
+
+# create scm
+scm <- scm_from_df(df)
+print(scm)
+```
+
+## Creating SCMs from Equations
+
+You can also specify an SCM explicitly using equation notation:
+
+```{r from-spec}
+spec <- "t0_b ~ U1 + U2; t1_a ~ t0_b + U1; t1_y ~ t1_a + U2"
+scm2 <- scm_from_spec(spec)
+print(scm2)
+```
+
+## LaTeX Output
+
+For manuscripts and presentations, you can generate LaTeX representations:
+
+```{r latex}
+cat(as_latex(scm2))
+```
+
+This produces LaTeX code that can be included in your documents:
+
+```latex
+\begin{align*}
+t0_b &:= f_{t0_b}(\,U1, U2, u_{t0_b}) \\
+t1_a &:= f_{t1_a}(\,t0_b, U1, u_{t1_a}) \\
+t1_y &:= f_{t1_y}(\,t1_a, U2, u_{t1_y}) \\
+\end{align*}
+```
+
+## Working with Complex Models
+
+### Time-Varying Confounding with Feedback
+
+```{r feedback}
+# model with treatment-confounder feedback
+feedback_spec <- paste(
+  "t0_l ~ U_l;",
+  "t0_a ~ t0_l + U_a;",
+  "t0_y ~ t0_a + t0_l + U_y;",
+  "t1_l ~ t0_y + t0_a + U_l;",     # y affects future l
+  "t1_a ~ t1_l + t0_y + U_a;",     # y affects future a
+  "t1_y ~ t1_a + t1_l + t0_y + U_y",
+  sep = " "
+)
+
+scm_feedback <- scm_from_spec(feedback_spec)
+summary(scm_feedback)
+```
+
+### M-Bias Structure
+
+```{r mbias}
+# classic m-bias structure
+m_bias <- scm_from_spec("U1 ~ ; U2 ~ ; X ~ U1; Y ~ U2; M ~ U1 + U2")
+print(m_bias)
+```
+
+## Integration with LMTP Workflows
+
+The SCM objects are designed to integrate with LMTP estimation workflows:
+
+```{r integration, eval=FALSE}
+# extract parent sets for LMTP
+scm <- scm_from_df(your_data)
+
+# use parent sets to define history for LMTP
+# for node "t2_a", its parents define the adjustment set
+adjustment_vars <- scm$pa[["t2_a"]]
+
+# use in lmtp call
+# lmtp::lmtp_tmle(
+#   data = your_data,
+#   trt = "t2_a",
+#   outcome = "t2_y",
+#   baseline = adjustment_vars,
+#   ...
+# )
+```
+
+## Summary Statistics
+
+Get insights into your causal structure:
+
+```{r summary}
+# create a more complex model
+complex_df <- data.frame(
+  t0_b1 = rnorm(10), t0_b2 = rnorm(10), t0_b3 = rnorm(10),
+  t0_l = rnorm(10), t0_a = rbinom(10, 1, 0.5),
+  t1_l = rnorm(10), t1_a = rbinom(10, 1, 0.5), 
+  t1_y1 = rnorm(10), t1_y2 = rnorm(10),
+  t2_l = rnorm(10), t2_a = rbinom(10, 1, 0.5),
+  t2_y1 = rnorm(10), t2_y2 = rnorm(10)
+)
+
+scm_complex <- scm_from_df(complex_df)
+summary(scm_complex)
+```
+
+## Customizing Parent Sets
+
+While `scm_from_df()` uses sensible defaults based on LMTP conventions, you might want to customize the parent sets:
+
+```{r customize}
+# start with automatic structure
+scm <- scm_from_df(df)
+
+# modify parent sets
+# remove some dependencies for t2_y
+scm$pa$t2_y <- c("t1_a", "t2_a")  # only depends on treatments
+
+# create new scm with modified structure
+scm_modified <- new_scm(
+  nodes = scm$nodes,
+  parents = scm$pa,
+  exogenous = scm$U
+)
+
+print(scm_modified)
+```
+
+## Best Practices
+
+1. **Naming Convention**: Follow the LMTP naming convention (`t{k}_{block}`) for automatic SCM generation
+2. **Validation**: Use `summary()` to check the dependency structure makes sense
+3. **Documentation**: Generate LaTeX output for papers to clearly communicate your causal assumptions
+4. **Integration**: Use the parent sets from SCM objects to define adjustment sets in your analyses

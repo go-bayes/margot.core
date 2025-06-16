@@ -4,18 +4,18 @@ test_that("margot_panel creates valid panel objects", {
   # create test data
   df <- data.frame(
     id = rep(1:3, each = 3),
-    wave = rep(1:3, 3),
+    time = rep(1:3, 3),
     outcome = rnorm(9),
     treatment = rbinom(9, 1, 0.5)
   )
   
   # create panel
-  panel <- margot_panel(df, id = "id", time = "wave")
+  panel <- margot_panel(df, id = "id", time = "time")
   
   expect_s3_class(panel, "margot_panel")
   expect_s3_class(panel, "data.frame")
   expect_equal(attr(panel, "id_col"), "id")
-  expect_equal(attr(panel, "time_col"), "wave")
+  expect_equal(attr(panel, "time_col"), "time")
 })
 
 test_that("margot_panel validates inputs", {
@@ -56,11 +56,11 @@ test_that("print method displays panel information", {
   # balanced panel
   df_balanced <- data.frame(
     id = rep(1:3, each = 3),
-    wave = rep(1:3, 3),
+    time = rep(1:3, 3),
     outcome = rnorm(9)
   )
   
-  panel <- margot_panel(df_balanced, id = "id", time = "wave")
+  panel <- margot_panel(df_balanced, id = "id", time = "time")
   
   output <- capture.output(print(panel))
   expect_match(output[1], "<margot_panel>")
@@ -71,7 +71,7 @@ test_that("print method displays panel information", {
   
   # unbalanced panel
   df_unbalanced <- df_balanced[-c(2, 5), ]  # remove some observations
-  panel_unbal <- margot_panel(df_unbalanced, id = "id", time = "wave")
+  panel_unbal <- margot_panel(df_unbalanced, id = "id", time = "time")
   
   output_unbal <- capture.output(print(panel_unbal))
   expect_true(any(grepl("Panel: unbalanced", output_unbal)))
@@ -161,12 +161,12 @@ test_that("as_wide.margot_panel converts to wide format", {
 test_that("subsetting preserves panel structure when appropriate", {
   df <- data.frame(
     id = rep(1:3, each = 3),
-    wave = rep(1:3, 3),
+    time = rep(1:3, 3),
     outcome = rnorm(9),
     treatment = rbinom(9, 1, 0.5)
   )
   
-  panel <- margot_panel(df, id = "id", time = "wave")
+  panel <- margot_panel(df, id = "id", time = "time")
   
   # row subsetting preserves panel
   subset1 <- panel[1:6, ]
@@ -174,11 +174,11 @@ test_that("subsetting preserves panel structure when appropriate", {
   expect_equal(nrow(subset1), 6)
   
   # column subsetting that keeps id and time preserves panel
-  subset2 <- panel[, c("id", "wave", "outcome")]
+  subset2 <- panel[, c("id", "time", "outcome")]
   expect_s3_class(subset2, "margot_panel")
   
   # column subsetting that drops id loses panel class
-  subset3 <- panel[, c("wave", "outcome")]
+  subset3 <- panel[, c("time", "outcome")]
   expect_false(inherits(subset3, "margot_panel"))
   
   # single column with drop = TRUE returns vector

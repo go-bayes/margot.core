@@ -63,10 +63,10 @@
 
 # option management ---------------------------------------------------
 
-#' Standard margotverse options
+#' Standard margotsphere options
 #'
 #' @description
-#' Get or set standard options used across margotverse packages
+#' Get or set standard options used across margotsphere packages
 #'
 #' @param ... Named options to set
 #' @param .list List of named options to set
@@ -104,7 +104,7 @@ margot_options <- function(..., .list = NULL) {
   invisible(opts_to_set)
 }
 
-#' Get default margotverse options
+#' Get default margotsphere options
 #'
 #' @return List of default option values
 #' @export

@@ -1,0 +1,240 @@
+---
+title: "Enhanced SCM with Interventions for Margotsphere"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Enhanced SCM with Interventions for Margotsphere}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+The enhanced SCM functionality in `margot.core` provides a comprehensive framework for specifying structural causal models with:
+
+1. **Mandatory exogenous errors** - Every endogenous node must have an explicit exogenous term
+2. **Timeline DSL** - User-friendly domain-specific language for model specification
+3. **Built-in shift interventions** - Store intervention policies directly in the SCM object
+
+All functions follow the `margot_` naming convention for consistency across the margotsphere ecosystem.
+
+```{r setup}
+library(margot.core)
+```
+
+## Timeline DSL: User-Friendly Model Specification
+
+The timeline DSL provides an intuitive way to specify temporal causal models:
+
+```{r dsl-example}
+# Define a simple longitudinal model
+dsl <- "
+U  = U_l, U_a, U_y
+k1 = t0_l ~ U_l
+k2 = t1_a ~ t0_l + U_a
+k3 = t2_y ~ t1_a + t0_l + U_y
+"
+
+scm <- margot_scm_from_dsl(dsl)
+print(scm)
+```
+
+### DSL Rules
+
+1. **One `U =` line** declaring all exogenous variables
+2. **Time-indexed equations** using `k# = node ~ parents` format
+3. **Automatic exogenous mapping** - parser matches U terms from parents
+
+## Shift Interventions
+
+Store multiple intervention policies directly in the SCM:
+
+```{r shifts}
+# Add static shift
+scm <- margot_scm_add_shift(
+  scm,
+  node = "t1_a",
+  name = "always_treat",
+  fun = function(a, ...) 1
+)
+
+# Add threshold intervention
+scm <- margot_scm_add_shift(
+  scm,
+  node = "t1_a",
+  name = "threshold_0.5",
+  fun = function(a, ...) ifelse(a < 0.5, 0.5, a)
+)
+
+# Add dynamic shift based on covariates
+scm <- margot_scm_add_shift(
+  scm,
+  node = "t1_a",
+  name = "adaptive",
+  fun = function(a, data, ...) {
+    # increase treatment for high-risk (high L values)
+    l_val <- data[["t0_l"]]
+    ifelse(l_val > median(l_val), pmin(a + 0.2, 1), a)
+  }
+)
+
+print(scm)
+```
+
+## Automatic SCM from Data
+
+For existing data following LMTP conventions:
+
+```{r from-data}
+# Create example data
+set.seed(2025)
+n <- 100
+df <- data.frame(
+  t0_b1 = rnorm(n),
+  t0_b2 = rbinom(n, 1, 0.4),
+  t1_l = rnorm(n),
+  t1_a = rbinom(n, 1, 0.5),
+  t2_y = rnorm(n)
+)
+
+# Automatic SCM creation
+scm_auto <- margot_scm_from_df(df)
+print(scm_auto)
+```
+
+## Complex Models with Feedback
+
+The DSL supports complex temporal dependencies:
+
+```{r feedback}
+feedback_dsl <- "
+U = U_l, U_a, U_y
+k1 = t0_l ~ U_l
+k1 = t0_a ~ t0_l + U_a
+k1 = t0_y ~ t0_a + t0_l + U_y
+k2 = t1_l ~ t0_y + t0_a + U_l         # outcome affects future confounder
+k2 = t1_a ~ t1_l + t0_y + U_a         # outcome affects future treatment
+k2 = t1_y ~ t1_a + t1_l + t0_y + U_y
+"
+
+scm_feedback <- margot_scm_from_dsl(feedback_dsl)
+print(scm_feedback)
+```
+
+## Integration with LMTP
+
+Extract shift functions for use with `lmtp` package:
+
+```{r lmtp-integration, eval=FALSE}
+# Get shift function
+shifts <- margot_scm_get_shifts(scm, "t1_a")
+adaptive_shift <- shifts$adaptive
+
+# Use with lmtp (assuming data is prepared)
+# library(lmtp)
+# result <- lmtp_tmle(
+#   data = your_data,
+#   trt = "t1_a",
+#   outcome = "t2_y",
+#   shift = adaptive_shift,
+#   ...
+# )
+```
+
+## LaTeX Output for Manuscripts
+
+Generate publication-ready equations:
+
+```{r latex}
+cat(margot_scm_as_latex(scm))
+```
+
+## Reporting Function
+
+A convenience function for clean SCM reports:
+
+```{r reporting}
+margot_report_scm <- function(scm, title = NULL) {
+  if (!is.null(title)) {
+    cat(title, "\n")
+    cat(paste(rep("=", nchar(title)), collapse = ""), "\n\n")
+  }
+  
+  cat("Structure:\n")
+  cat("- Nodes:", length(scm$nodes), "\n")
+  cat("- Time periods:", length(unique(scm$k)), "\n")
+  
+  n_interventions <- sum(sapply(scm$shift, length))
+  if (n_interventions > 0) {
+    cat("- Interventions:", n_interventions, "\n")
+    for (node in names(scm$shift)) {
+      cat("  *", node, ":", paste(names(scm$shift[[node]]), collapse = ", "), "\n")
+    }
+  }
+  
+  cat("\n")
+  invisible(margot_scm_as_latex(scm))
+}
+
+# Use it
+margot_report_scm(scm, "Analysis SCM")
+```
+
+## Extracting Components
+
+Access specific parts of the SCM:
+
+```{r extract}
+# Get time indices
+time_indices <- margot_scm_time_indices(scm)
+print(time_indices)
+
+# Get all shifts for a node
+t1a_shifts <- margot_scm_get_shifts(scm, "t1_a")
+cat("\nShifts available for t1_a:\n")
+str(t1a_shifts, max.level = 1)
+```
+
+## Best Practices
+
+1. **Always specify exogenous terms** - The parser enforces this for identification
+2. **Use meaningful shift names** - Makes analysis code self-documenting
+3. **Test shifts before adding** - Ensure they behave as expected
+4. **Document complex dependencies** - Use comments in the DSL
+
+## Advanced Example: Multi-Outcome Model
+
+```{r multi-outcome}
+multi_dsl <- "
+U = U_b, U_l, U_a, U_y1, U_y2, U_m
+k1 = b ~ U_b
+k2 = l ~ b + U_l
+k2 = a ~ b + l + U_a
+k3 = m ~ a + l + U_m                  # mediator
+k3 = y1 ~ a + l + m + U_y1            # outcome 1
+k3 = y2 ~ a + l + U_y2                # outcome 2 (no mediator)
+"
+
+scm_multi <- margot_scm_from_dsl(multi_dsl)
+
+# Add different shifts for different estimands
+scm_multi <- margot_scm_add_shift(
+  scm_multi, "a", "total_effect",
+  function(a, ...) a + 0.5
+)
+
+scm_multi <- margot_scm_add_shift(
+  scm_multi, "m", "direct_effect", 
+  function(m, ...) m  # hold mediator constant
+)
+
+print(scm_multi)
+```
+
+This enhanced SCM framework provides a complete solution for specifying, manipulating, and analyzing structural causal models within the margotsphere ecosystem.

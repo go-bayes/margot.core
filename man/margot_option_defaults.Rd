@@ -2,7 +2,7 @@
 % Please edit documentation in R/margot-core-utils.R
 \name{margot_option_defaults}
 \alias{margot_option_defaults}
-\title{Get default margotverse options}
+\title{Get default margotsphere options}
 \usage{
 margot_option_defaults()
 }
@@ -10,5 +10,5 @@ margot_option_defaults()
 List of default option values
 }
 \description{
-Get default margotverse options
+Get default margotsphere options
 }
