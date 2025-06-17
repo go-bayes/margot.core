@@ -186,9 +186,12 @@ margot_scm_from_df <- function(data, K_min = 3) {
 #' Parse SCM from domain-specific language
 #'
 #' @param text Character string with SCM specification
+#' @param K Optional number of time periods. If specified, simple variable names
+#'   (without t{n}_ prefix) can be used and k indices will be assigned automatically
 #' @return Object of class `margot_scm`
 #' @export
 #' @examples
+#' # explicit k specification (original format)
 #' dsl <- "
 #' U  = U_l, U_a, U_y
 #' k1 = t0_l ~ U_l
@@ -196,7 +199,25 @@ margot_scm_from_df <- function(data, K_min = 3) {
 #' k3 = t2_y ~ t1_a + t0_l + U_y
 #' "
 #' scm <- margot_scm_from_dsl(dsl)
-margot_scm_from_dsl <- function(text) {
+#' 
+#' # automatic from t{n}_ prefix
+#' dsl2 <- "
+#' U = U_l, U_a, U_y
+#' t0_l ~ U_l
+#' t1_a ~ t0_l + U_a
+#' t2_y ~ t1_a + t0_l + U_y
+#' "
+#' scm2 <- margot_scm_from_dsl(dsl2)
+#' 
+#' # simple names with K parameter
+#' dsl3 <- "
+#' U = U_l, U_a, U_y
+#' l ~ U_l
+#' a ~ l + U_a
+#' y ~ a + l + U_y
+#' "
+#' scm3 <- margot_scm_from_dsl(dsl3, K = 3)
+margot_scm_from_dsl <- function(text, K = NULL) {
 
   txt <- trimws(strsplit(text, "\n")[[1]])
   txt <- txt[nzchar(txt) & !grepl("^#", txt)]  # drop blanks and comments
@@ -212,63 +233,125 @@ margot_scm_from_dsl <- function(text) {
   U_all <- trimws(strsplit(sub("^U\\s*=\\s*", "", Uline_clean), ",")[[1]])
   txt <- setdiff(txt, Uline)
 
-  # process each k-block
+  # process each equation
   nodes <- character()
   pa <- list()
   Umap <- list()
   kvec <- integer()
-
+  
+  # helper function to extract time index from variable name
+  extract_time_index <- function(varname) {
+    if (grepl("^t[0-9]+_", varname)) {
+      as.integer(sub("^t([0-9]+)_.*", "\\1", varname)) + 1  # t0 -> k1, t1 -> k2, etc.
+    } else {
+      NA_integer_
+    }
+  }
+  
+  # parse equations
+  equations <- list()
   for (line in txt) {
     # remove comments
     line_clean <- gsub("#.*$", "", line)
     line_clean <- trimws(line_clean)
-
-    if (!grepl("^k[0-9]+\\s*=", line_clean)) {
-      stop("lines must start with k#, e.g. 'k2 = var ~ ...'")
+    
+    # check for explicit k specification
+    has_k <- grepl("^k[0-9]+\\s*=", line_clean)
+    
+    if (has_k) {
+      # explicit k format: "k# = lhs ~ rhs"
+      split1 <- strsplit(line_clean, "=", fixed = TRUE)[[1]]
+      if (length(split1) != 2) {
+        stop("invalid format in line: ", line)
+      }
+      k_explicit <- as.integer(sub("^k", "", trimws(split1[1])))
+      eq_text <- trimws(split1[2])
+    } else {
+      # no explicit k: "lhs ~ rhs"
+      k_explicit <- NA_integer_
+      eq_text <- line_clean
     }
-
-    # split "k# = lhs ~ rhs"
-    split1 <- strsplit(line_clean, "=", fixed = TRUE)[[1]]
-    if (length(split1) != 2) {
-      stop("invalid format in line: ", line)
+    
+    # parse equation
+    if (!grepl("~", eq_text)) {
+      stop("missing ~ in equation: ", eq_text)
     }
-
-    k <- as.integer(sub("^k", "", trimws(split1[1])))
-    rhs_whole <- trimws(split1[2])
-
-    # split equation
-    if (!grepl("~", rhs_whole)) {
-      stop("missing ~ in equation: ", rhs_whole)
-    }
-
-    split2 <- strsplit(rhs_whole, "~", fixed = TRUE)[[1]]
+    
+    split2 <- strsplit(eq_text, "~", fixed = TRUE)[[1]]
     lhs <- trimws(split2[1])
     rhs <- if (length(split2) > 1) trimws(split2[2]) else ""
-
+    
     # parse all terms from rhs
     all_terms <- if (nchar(rhs)) {
       trimws(strsplit(rhs, "\\+")[[1]])
     } else {
       character()
     }
-
+    
     # separate exogenous and endogenous parents
     u_terms <- intersect(U_all, all_terms)
     if (length(u_terms) == 0) {
       stop("no exogenous error listed in U = ... for node ", lhs)
     }
     u_term <- u_terms[1]  # use first U term
-
+    
     # parents are all terms except the U term
     parents <- setdiff(all_terms, U_all)
-
-    # store
-    nodes <- c(nodes, lhs)
-    pa[[lhs]] <- parents
-    Umap[[lhs]] <- u_term
-    kvec <- c(kvec, k)
+    
+    # determine k index
+    if (!is.na(k_explicit)) {
+      # explicit k specification takes precedence
+      k <- k_explicit
+    } else {
+      # try to infer from variable name
+      k <- extract_time_index(lhs)
+      if (is.na(k)) {
+        # will be assigned later if K is provided
+        k <- NA_integer_
+      }
+    }
+    
+    # store equation info
+    equations[[length(equations) + 1]] <- list(
+      lhs = lhs,
+      parents = parents,
+      u_term = u_term,
+      k = k
+    )
   }
-
+  
+  # assign k indices for equations without them
+  na_k_count <- sum(sapply(equations, function(eq) is.na(eq$k)))
+  
+  if (na_k_count > 0) {
+    if (is.null(K)) {
+      stop("Some variables lack time indicators and no K parameter was provided. ",
+           "Either use t{n}_ prefix, explicit k specification, or provide K parameter.")
+    }
+    
+    # assign k based on position
+    k_assignment <- 1:K
+    if (length(equations) != K) {
+      stop("When using K parameter, number of equations (", length(equations), 
+           ") must equal K (", K, ")")
+    }
+    
+    # simple assignment: order in DSL corresponds to time
+    for (i in seq_along(equations)) {
+      if (is.na(equations[[i]]$k)) {
+        equations[[i]]$k <- k_assignment[i]
+      }
+    }
+  }
+  
+  # build SCM from equations
+  for (eq in equations) {
+    nodes <- c(nodes, eq$lhs)
+    pa[[eq$lhs]] <- eq$parents
+    Umap[[eq$lhs]] <- eq$u_term
+    kvec <- c(kvec, eq$k)
+  }
+  
   margot_scm_new(nodes, pa, Umap, time_index = kvec)
 }
 

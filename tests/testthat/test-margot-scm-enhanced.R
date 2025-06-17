@@ -106,10 +106,10 @@ test_that("margot_scm_from_dsl validates DSL syntax", {
     "exactly one line starting with 'U =' is required"
   )
   
-  # invalid k-line format
+  # invalid equation format (missing ~)
   expect_error(
     margot_scm_from_dsl("U = U_x\nx = y"),
-    "lines must start with k#"
+    "missing ~ in equation"
   )
   
   # missing exogenous in U list
@@ -282,4 +282,93 @@ test_that("integration with lmtp workflow", {
   
   shifts <- margot_scm_get_shifts(scm, "a")
   expect_true("increase_low" %in% names(shifts))
+})
+
+test_that("margot_scm_from_dsl auto-detects k from t{n}_ prefix", {
+  dsl <- "
+  U = U_l, U_a, U_y
+  t0_l ~ U_l
+  t1_a ~ t0_l + U_a
+  t2_y ~ t1_a + t0_l + U_y
+  "
+  
+  scm <- margot_scm_from_dsl(dsl)
+  
+  expect_equal(scm$nodes, c("t0_l", "t1_a", "t2_y"))
+  expect_equal(scm$k, c(1, 2, 3))
+  
+  # check structure is correct
+  expect_equal(scm$pa$t0_l, character())
+  expect_equal(scm$pa$t1_a, "t0_l")
+  expect_equal(scm$pa$t2_y, c("t1_a", "t0_l"))
+})
+
+test_that("margot_scm_from_dsl works with simple names and K parameter", {
+  dsl <- "
+  U = U_l, U_a, U_y
+  l ~ U_l
+  a ~ l + U_a
+  y ~ a + l + U_y
+  "
+  
+  scm <- margot_scm_from_dsl(dsl, K = 3)
+  
+  expect_equal(scm$nodes, c("l", "a", "y"))
+  expect_equal(scm$k, c(1, 2, 3))
+  
+  # check structure
+  expect_equal(scm$pa$l, character())
+  expect_equal(scm$pa$a, "l")
+  expect_equal(scm$pa$y, c("a", "l"))
+})
+
+test_that("margot_scm_from_dsl explicit k overrides auto-detection", {
+  dsl <- "
+  U = U_l, U_a, U_y
+  k2 = t0_l ~ U_l
+  k1 = t1_a ~ t0_l + U_a
+  k3 = t2_y ~ t1_a + t0_l + U_y
+  "
+  
+  scm <- margot_scm_from_dsl(dsl)
+  
+  # explicit k should override the t{n}_ prefix
+  expect_equal(scm$k, c(2, 1, 3))
+})
+
+test_that("margot_scm_from_dsl handles mixed formats", {
+  dsl <- "
+  U = U_b, U_l, U_a, U_y
+  k1 = b ~ U_b
+  t1_l ~ b + U_l
+  k3 = a ~ b + t1_l + U_a
+  t3_y ~ a + t1_l + U_y
+  "
+  
+  scm <- margot_scm_from_dsl(dsl)
+  
+  expect_equal(scm$nodes, c("b", "t1_l", "a", "t3_y"))
+  expect_equal(scm$k, c(1, 2, 3, 4))  # t1 -> k2, t3 -> k4
+})
+
+test_that("margot_scm_from_dsl errors appropriately", {
+  # no time info and no K
+  expect_error(
+    margot_scm_from_dsl("
+    U = U_x, U_y
+    x ~ U_x
+    y ~ x + U_y
+    "),
+    "Either use t\\{n\\}_ prefix, explicit k specification, or provide K parameter"
+  )
+  
+  # wrong number of equations for K
+  expect_error(
+    margot_scm_from_dsl("
+    U = U_x, U_y
+    x ~ U_x
+    y ~ x + U_y
+    ", K = 3),
+    "number of equations \\(2\\) must equal K \\(3\\)"
+  )
 })

@@ -30,10 +30,42 @@ library(margot.core)
 
 ## Timeline DSL: User-Friendly Model Specification
 
-The timeline DSL provides an intuitive way to specify temporal causal models:
+The timeline DSL provides multiple intuitive ways to specify temporal causal models:
 
-```{r dsl-example}
-# Define a simple longitudinal model
+### Method 1: Simple names with K parameter (NEW!)
+
+```{r dsl-simple}
+# Simple variable names with K parameter
+dsl <- "
+U = U_l, U_a, U_y
+l ~ U_l
+a ~ l + U_a
+y ~ a + l + U_y
+"
+
+scm <- margot_scm_from_dsl(dsl, K = 3)
+print(scm)
+```
+
+### Method 2: Automatic detection from variable names
+
+```{r dsl-auto}
+# Variables with t{n}_ prefix auto-detect their time
+dsl <- "
+U = U_l, U_a, U_y
+t0_l ~ U_l
+t1_a ~ t0_l + U_a
+t2_y ~ t1_a + t0_l + U_y
+"
+
+scm <- margot_scm_from_dsl(dsl)
+print(scm)
+```
+
+### Method 3: Explicit k specification (original format)
+
+```{r dsl-explicit}
+# Explicit k specification for full control
 dsl <- "
 U  = U_l, U_a, U_y
 k1 = t0_l ~ U_l
@@ -48,7 +80,10 @@ print(scm)
 ### DSL Rules
 
 1. **One `U =` line** declaring all exogenous variables
-2. **Time-indexed equations** using `k# = node ~ parents` format
+2. **Flexible time specification**:
+   - Use simple names with `K` parameter for automatic assignment
+   - Use `t{n}_` prefix for automatic detection (t0 → k=1, t1 → k=2, etc.)
+   - Use explicit `k# =` for full control
 3. **Automatic exogenous mapping** - parser matches U terms from parents
 
 ## Shift Interventions

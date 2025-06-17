@@ -4,10 +4,13 @@
 \alias{margot_scm_from_dsl}
 \title{Parse SCM from domain-specific language}
 \usage{
-margot_scm_from_dsl(text)
+margot_scm_from_dsl(text, K = NULL)
 }
 \arguments{
 \item{text}{Character string with SCM specification}
+
+\item{K}{Optional number of time periods. If specified, simple variable names
+(without t{n}_ prefix) can be used and k indices will be assigned automatically}
 }
 \value{
 Object of class \code{margot_scm}
@@ -16,6 +19,7 @@ Object of class \code{margot_scm}
 Parse SCM from domain-specific language
 }
 \examples{
+# explicit k specification (original format)
 dsl <- "
 U  = U_l, U_a, U_y
 k1 = t0_l ~ U_l
@@ -23,4 +27,22 @@ k2 = t1_a ~ t0_l + U_a
 k3 = t2_y ~ t1_a + t0_l + U_y
 "
 scm <- margot_scm_from_dsl(dsl)
+
+# automatic from t{n}_ prefix
+dsl2 <- "
+U = U_l, U_a, U_y
+t0_l ~ U_l
+t1_a ~ t0_l + U_a
+t2_y ~ t1_a + t0_l + U_y
+"
+scm2 <- margot_scm_from_dsl(dsl2)
+
+# simple names with K parameter
+dsl3 <- "
+U = U_l, U_a, U_y
+l ~ U_l
+a ~ l + U_a
+y ~ a + l + U_y
+"
+scm3 <- margot_scm_from_dsl(dsl3, K = 3)
 }

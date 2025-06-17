@@ -3,21 +3,34 @@
 library(devtools)
 load_all()
 
-# Example 1: Create SCM from DSL with mandatory exogenous errors
-# -------------------------------------------------------------
+# Example 1: Simple DSL with K parameter
+# ---------------------------------------
 
-cat("Example 1: Timeline DSL with mandatory exogenous errors\n")
-cat("======================================================\n\n")
+cat("Example 1: Simple DSL with K parameter\n")
+cat("======================================\n\n")
 
 dsl <- "
-U  = U_l, U_a, U_y
-k1 = t0_l ~ U_l
-k2 = t1_a ~ t0_l + U_a
-k3 = t2_y ~ t1_a + t0_l + U_y
+U = U_l, U_a, U_y
+l ~ U_l
+a ~ l + U_a
+y ~ a + l + U_y
 "
 
-scm <- margot_scm_from_dsl(dsl)
+scm <- margot_scm_from_dsl(dsl, K = 3)
 print(scm)
+
+cat("\n\n# Example 1b: Auto-detection from variable names\n")
+cat("# ----------------------------------------------\n\n")
+
+dsl_auto <- "
+U = U_l, U_a, U_y
+t0_l ~ U_l
+t1_a ~ t0_l + U_a
+t2_y ~ t1_a + t0_l + U_y
+"
+
+scm_auto <- margot_scm_from_dsl(dsl_auto)
+print(scm_auto)
 
 # Example 2: Add shift interventions
 # ----------------------------------
